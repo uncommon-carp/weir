@@ -1,0 +1,12 @@
+region      = "us-east-1"
+name_prefix = "sentinel-gate"
+
+# org/repo allowed to assume the CI role via OIDC
+github_repo = "uncommon-carp/sentinel-gate"
+
+# Cost guardrails
+billing_alarm_threshold_usd = 25
+alarm_email                 = "" # set to receive billing alerts
+
+# Set false if this AWS account already has a GitHub OIDC provider
+create_oidc_provider = true

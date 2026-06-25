@@ -1,0 +1,16 @@
+name: Weir DAST Gate
+description: Provisions an ephemeral isolated Fargate scan task, runs Sentinel against the target, and surfaces findings.
+author: uncommon-carp
+
+inputs:
+  target-image-tag:
+    description: ECR image tag for the target (typically the PR git SHA).
+    required: true
+  run-id:
+    description: Unique ID for this scan run. Defaults to GHA run ID + attempt.
+    required: false
+    default: "weir-${{ github.run_id }}-${{ github.run_attempt }}"
+
+runs:
+  using: node20
+  main: packages/cli/dist/cli.js

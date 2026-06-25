@@ -1,0 +1,22 @@
+{
+  "name": "@uncommon-carp/weir-cli",
+  "version": "0.1.0",
+  "description": "CLI entrypoint for the Weir DAST gate.",
+  "type": "module",
+  "bin": {
+    "weir": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@uncommon-carp/weir-core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

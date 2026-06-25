@@ -1,0 +1,67 @@
+name: scan
+
+on:
+  workflow_call:
+    inputs:
+      target-image-tag:
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  scan:
+    name: weir scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.WEIR_GHA_ROLE_ARN }}
+          aws-region: ${{ vars.WEIR_AWS_REGION }}
+
+      - name: load infra outputs into env
+        working-directory: infra
+        run: |
+          terraform init -backend=false -input=false
+          echo "WEIR_ECS_CLUSTER=$(terraform output -raw ecs_cluster)"                    >> $GITHUB_ENV
+          echo "WEIR_TASK_FAMILY=$(terraform output -raw task_family)"                    >> $GITHUB_ENV
+          echo "WEIR_SUBNET_ID=$(terraform output -raw subnet_id)"                        >> $GITHUB_ENV
+          echo "WEIR_SECURITY_GROUP_ID=$(terraform output -raw task_security_group_id)"   >> $GITHUB_ENV
+          echo "WEIR_RESULTS_BUCKET=$(terraform output -raw results_bucket)"              >> $GITHUB_ENV
+          echo "WEIR_EXECUTION_ROLE_ARN=$(terraform output -raw execution_role_arn)"      >> $GITHUB_ENV
+          echo "WEIR_TASK_ROLE_ARN=$(terraform output -raw task_role_arn)"                >> $GITHUB_ENV
+          echo "WEIR_SCHEDULER_ROLE_ARN=$(terraform output -raw scheduler_role_arn)"      >> $GITHUB_ENV
+          echo "WEIR_ECR_TARGET_REPO=$(terraform output -raw ecr_target_repo)"            >> $GITHUB_ENV
+          echo "WEIR_ECR_SENTINEL_REPO=$(terraform output -raw ecr_sentinel_repo)"        >> $GITHUB_ENV
+          echo "WEIR_MAX_CONCURRENT_SCANS=$(terraform output -raw max_concurrent_scans)"  >> $GITHUB_ENV
+          echo "WEIR_TEARDOWN_MINUTES=$(terraform output -raw teardown_minutes)"          >> $GITHUB_ENV
+          echo "AWS_REGION=${{ vars.WEIR_AWS_REGION }}"                                  >> $GITHUB_ENV
+          echo "WEIR_TARGET_IMAGE_TAG=${{ inputs.target-image-tag }}"                    >> $GITHUB_ENV
+          echo "WEIR_RUN_ID=weir-${{ github.run_id }}-${{ github.run_attempt }}"         >> $GITHUB_ENV
+
+      - name: push target image
+        run: |
+          aws ecr get-login-password --region $AWS_REGION \
+            | docker login --username AWS --password-stdin \
+              $(echo $WEIR_ECR_TARGET_REPO | cut -d/ -f1)
+          docker build --platform linux/amd64 \
+            -t $WEIR_ECR_TARGET_REPO:$WEIR_TARGET_IMAGE_TAG .
+          docker push $WEIR_ECR_TARGET_REPO:$WEIR_TARGET_IMAGE_TAG
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: build cli
+        run: npm run build --workspace=packages/cli
+
+      - name: run weir
+        run: node packages/cli/dist/cli.js
