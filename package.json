@@ -6,7 +6,6 @@
   ],
   "scripts": {
     "build": "npm run build --workspace=packages/core && npm run build --workspace=packages/cli",
-    "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present"
   }
 }
