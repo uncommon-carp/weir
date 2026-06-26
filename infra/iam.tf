@@ -56,9 +56,9 @@ resource "aws_iam_role_policy" "task" {
 
 # ── GitHub OIDC provider + CI role ───────────────────────────────────────────
 resource "aws_iam_openid_connect_provider" "github" {
-  count           = var.create_oidc_provider ? 1 : 0
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
+  count          = var.create_oidc_provider ? 1 : 0
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
   # AWS validates GitHub's cert chain dynamically now; these are the published
   # thumbprints kept for the required field.
   thumbprint_list = [
