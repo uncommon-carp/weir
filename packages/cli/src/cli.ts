@@ -13,7 +13,6 @@ async function main(): Promise<void> {
   const results = new ResultsReader(config);
 
   console.log(`[weir] run=${config.runId} target=${config.targetImageTag}`);
-
   console.log('[weir] registering task definition revision...');
   const taskDefArn = await ecs.registerRevision();
   console.log(`[weir] task def: ${taskDefArn}`);
@@ -36,8 +35,16 @@ async function main(): Promise<void> {
 
     const report = await results.read();
     const findingCount = report.findings?.length ?? 0;
-    console.log(`\n[weir] ${findingCount} finding(s) — ${results.s3Uri()}\n`);
+    const suiteErrorCount = report.suiteErrors?.length ?? 0;
 
+    if (suiteErrorCount > 0) {
+      console.warn(`\n[weir] warning: ${suiteErrorCount} suite error(s) — scan may be incomplete`);
+      for (const e of report.suiteErrors) {
+        console.warn(`  [suite error] ${e.suite}: ${e.message}`);
+      }
+    }
+
+    console.log(`\n[weir] ${findingCount} finding(s) — ${results.s3Uri()}\n`);
     for (const f of report.findings ?? []) {
       console.log(`  [${f.severity}] ${f.id}: ${f.title}`);
     }
@@ -45,10 +52,10 @@ async function main(): Promise<void> {
     exitCode = findingCount > 0 ? 1 : 0;
   } catch (err) {
     console.error('[weir] error:', err);
-    try { await ecs.stopTask(taskArn, 'weir: orchestrator error'); } catch {}
+    try { await ecs.stopTask(taskArn, 'weir: orchestrator error'); } catch { }
     exitCode = 1;
   } finally {
-    try { await scheduler.cancel(); } catch {}
+    try { await scheduler.cancel(); } catch { }
   }
 
   process.exit(exitCode);

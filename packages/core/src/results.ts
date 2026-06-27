@@ -3,6 +3,25 @@ import type { Config } from './config.js';
 
 // Matches Sentinel's output shape. Pin this interface to Sentinel's actual
 // report format once the S3 output feature is implemented.
+
+export interface SuiteError {
+  suite: string;
+  message: string;
+}
+
+export interface ReporterError {
+  reporter: string;
+  message: string;
+}
+
+export interface RunMeta {
+  startedAt: string;
+  finishedAt?: string;
+  durationMs?: number;
+  targetBaseUrl: string;
+  version: string;
+}
+
 export interface Finding {
   id: string;
   severity: string;
@@ -11,8 +30,11 @@ export interface Finding {
 }
 
 export interface ScanReport {
+  meta: RunMeta;
+  config: Record<string, unknown>;
   findings: Finding[];
-  summary: Record<string, unknown>;
+  suiteErrors: SuiteError[];
+  reporterErrors: ReporterError[];
 }
 
 export class ResultsReader {
