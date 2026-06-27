@@ -33,3 +33,32 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test --if-present
+
+  publish-action:
+    name: publish action image
+    runs-on: ubuntu-latest
+    needs: [infra, packages]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/cli/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/uncommon-carp/weir:latest
+            ghcr.io/uncommon-carp/weir:${{ github.sha }}

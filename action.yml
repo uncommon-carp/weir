@@ -12,5 +12,5 @@ inputs:
     default: "weir-${{ github.run_id }}-${{ github.run_attempt }}"
 
 runs:
-  using: node20
-  main: packages/cli/dist/cli.js
+  using: docker
+  image: docker://ghcr.io/uncommon-carp/weir:latest
