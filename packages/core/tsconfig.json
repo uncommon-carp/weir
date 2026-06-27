@@ -10,7 +10,8 @@
     "sourceMap": true,
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "composite": true,
   },
   "include": [
     "src"
