@@ -10,13 +10,13 @@ terraform {
 }
 
 provider "aws" {
-  region = var.region
+  region  = var.region
   profile = var.aws_profile
 }
 
 # Billing metrics only exist in us-east-1. Used by the cost alarm in observability.tf.
 provider "aws" {
-  alias  = "use1"
-  region = "us-east-1"
+  alias   = "use1"
+  region  = "us-east-1"
   profile = var.aws_profile
 }
