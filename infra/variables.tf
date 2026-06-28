@@ -4,6 +4,12 @@ variable "region" {
   default     = "us-east-1"
 }
 
+variable "aws_profile" {
+  description = "Local AWS profile to use"
+  type = "string"
+  default = ""
+}
+
 variable "name_prefix" {
   description = "Prefix for all resource names."
   type        = string
@@ -13,7 +19,6 @@ variable "name_prefix" {
 variable "github_repo" {
   description = "GitHub repo allowed to assume the CI role, as 'org/repo'. Used in the OIDC trust policy 'sub' condition."
   type        = string
-  # e.g. "uncommon-carp/sentinel-gate"
 }
 
 variable "vpc_cidr" {
