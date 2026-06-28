@@ -6,8 +6,8 @@ variable "region" {
 
 variable "aws_profile" {
   description = "Local AWS profile to use"
-  type = "string"
-  default = ""
+  type        = string
+  default     = ""
 }
 
 variable "name_prefix" {
