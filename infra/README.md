@@ -65,6 +65,7 @@ terraform apply
 ```
 
 One-time account toggles:
+
 - Billing → enable "Receive CloudWatch billing alerts" (the metric won't publish
   otherwise).
 - If the account already has a GitHub OIDC provider, set
@@ -89,7 +90,22 @@ Two glue pieces live in the application/CLI layer, not here:
    private subnet + task SG with `assignPublicIp=DISABLED`, creates the one-shot
    teardown schedule, polls `DescribeTasks` to `STOPPED`, reads the S3 report,
    exits nonzero on findings.
+
 ```
+
+## Per-run container overrides
+
+The baseline task definition sets `RESULTS_BUCKET` from Terraform but intentionally
+omits `RUN_ID` — it is unique per scan and must be passed as a container override
+at `RunTask` time. The orchestrator CLI handles this automatically. For manual
+smoke tests, pass it explicitly:
+
+```bash
+--overrides '{"containerOverrides":[{"name":"sentinel","environment":[{"name":"RUN_ID","value":"smoke-test-1"}]}]}'
+```
+
+Without `RUN_ID`, Sentinel logs a partial pipeline warning and skips the S3
+upload — the task will complete but no report will be written.
 
 ## Cost note
 
