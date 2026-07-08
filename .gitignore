@@ -10,6 +10,7 @@ infra/*.tfplan
 node_modules/
 packages/*/node_modules/
 packages/*/dist/
+packages/*/*.tsbuildinfo
 
 # Misc
 .DS_Store
