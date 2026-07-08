@@ -174,6 +174,13 @@ data "aws_iam_policy_document" "gha_perms" {
     actions   = ["s3:GetObject", "s3:ListBucket"]
     resources = [aws_s3_bucket.results.arn, "${aws_s3_bucket.results.arn}/results/*"]
   }
+
+  # Read Terraform-published config so CI never runs `terraform` at all.
+  statement {
+    sid       = "ReadCiParams"
+    actions   = ["ssm:GetParameter"]
+    resources = ["arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_prefix}/*"]
+  }
 }
 
 resource "aws_iam_role_policy" "gha" {

@@ -24,22 +24,20 @@ jobs:
           role-to-assume: ${{ vars.WEIR_GHA_ROLE_ARN }}
           aws-region: ${{ vars.WEIR_AWS_REGION }}
 
-      - name: load infra outputs into env
-        working-directory: infra
+      - name: load infra outputs from SSM
         run: |
-          terraform init -backend=false -input=false
-          echo "WEIR_ECS_CLUSTER=$(terraform output -raw ecs_cluster)"                    >> $GITHUB_ENV
-          echo "WEIR_TASK_FAMILY=$(terraform output -raw task_family)"                    >> $GITHUB_ENV
-          echo "WEIR_SUBNET_ID=$(terraform output -raw subnet_id)"                        >> $GITHUB_ENV
-          echo "WEIR_SECURITY_GROUP_ID=$(terraform output -raw task_security_group_id)"   >> $GITHUB_ENV
-          echo "WEIR_RESULTS_BUCKET=$(terraform output -raw results_bucket)"              >> $GITHUB_ENV
-          echo "WEIR_EXECUTION_ROLE_ARN=$(terraform output -raw execution_role_arn)"      >> $GITHUB_ENV
-          echo "WEIR_TASK_ROLE_ARN=$(terraform output -raw task_role_arn)"                >> $GITHUB_ENV
-          echo "WEIR_SCHEDULER_ROLE_ARN=$(terraform output -raw scheduler_role_arn)"      >> $GITHUB_ENV
-          echo "WEIR_ECR_TARGET_REPO=$(terraform output -raw ecr_target_repo)"            >> $GITHUB_ENV
-          echo "WEIR_ECR_SENTINEL_REPO=$(terraform output -raw ecr_sentinel_repo)"        >> $GITHUB_ENV
-          echo "WEIR_MAX_CONCURRENT_SCANS=$(terraform output -raw max_concurrent_scans)"  >> $GITHUB_ENV
-          echo "WEIR_TEARDOWN_MINUTES=$(terraform output -raw teardown_minutes)"          >> $GITHUB_ENV
+          echo "WEIR_ECS_CLUSTER=$(aws ssm get-parameter --name /weir/ci/ecs-cluster --query Parameter.Value --output text)"                     >> $GITHUB_ENV
+          echo "WEIR_TASK_FAMILY=$(aws ssm get-parameter --name /weir/ci/task-family --query Parameter.Value --output text)"                     >> $GITHUB_ENV
+          echo "WEIR_SUBNET_ID=$(aws ssm get-parameter --name /weir/ci/subnet-id --query Parameter.Value --output text)"                         >> $GITHUB_ENV
+          echo "WEIR_SECURITY_GROUP_ID=$(aws ssm get-parameter --name /weir/ci/security-group-id --query Parameter.Value --output text)"         >> $GITHUB_ENV
+          echo "WEIR_RESULTS_BUCKET=$(aws ssm get-parameter --name /weir/ci/results-bucket --query Parameter.Value --output text)"                >> $GITHUB_ENV
+          echo "WEIR_EXECUTION_ROLE_ARN=$(aws ssm get-parameter --name /weir/ci/execution-role-arn --query Parameter.Value --output text)"       >> $GITHUB_ENV
+          echo "WEIR_TASK_ROLE_ARN=$(aws ssm get-parameter --name /weir/ci/task-role-arn --query Parameter.Value --output text)"                 >> $GITHUB_ENV
+          echo "WEIR_SCHEDULER_ROLE_ARN=$(aws ssm get-parameter --name /weir/ci/scheduler-role-arn --query Parameter.Value --output text)"       >> $GITHUB_ENV
+          echo "WEIR_ECR_TARGET_REPO=$(aws ssm get-parameter --name /weir/ci/ecr-target-repo --query Parameter.Value --output text)"             >> $GITHUB_ENV
+          echo "WEIR_ECR_SENTINEL_REPO=$(aws ssm get-parameter --name /weir/ci/ecr-sentinel-repo --query Parameter.Value --output text)"         >> $GITHUB_ENV
+          echo "WEIR_MAX_CONCURRENT_SCANS=$(aws ssm get-parameter --name /weir/ci/max-concurrent-scans --query Parameter.Value --output text)"   >> $GITHUB_ENV
+          echo "WEIR_TEARDOWN_MINUTES=$(aws ssm get-parameter --name /weir/ci/teardown-minutes --query Parameter.Value --output text)"           >> $GITHUB_ENV
           echo "AWS_REGION=${{ vars.WEIR_AWS_REGION }}"                                  >> $GITHUB_ENV
           echo "WEIR_TARGET_IMAGE_TAG=${{ inputs.target-image-tag }}"                    >> $GITHUB_ENV
           echo "WEIR_RUN_ID=weir-${{ github.run_id }}-${{ github.run_attempt }}"         >> $GITHUB_ENV

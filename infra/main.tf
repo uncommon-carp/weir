@@ -8,7 +8,8 @@ data "aws_ec2_managed_prefix_list" "s3" {
 }
 
 locals {
-  name = var.name_prefix
+  name       = var.name_prefix
+  ssm_prefix = "/weir/ci"
   tags = {
     Project   = "sentinel-gate"
     ManagedBy = "terraform"
