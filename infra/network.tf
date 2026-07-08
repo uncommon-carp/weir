@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Network: a single private subnet with NO internet route.
+# Network: two private subnets (multi-AZ) with NO internet route.
 #
 # There is no Internet Gateway and no NAT. The task reaches AWS services only
 # through VPC endpoints (ECR pull, S3, CloudWatch Logs). It has no route to the
@@ -21,8 +21,16 @@ resource "aws_subnet" "private" {
   tags              = merge(local.tags, { Name = "${local.name}-private" })
 }
 
+resource "aws_subnet" "private_b" {
+  vpc_id            = aws_vpc.this.id
+  cidr_block        = var.private_subnet_cidr_b
+  availability_zone = "${var.region}b"
+  tags              = merge(local.tags, { Name = "${local.name}-private-b" })
+}
+
 # Route table holds only the implicit local route plus the S3 gateway endpoint.
 # No 0.0.0.0/0 entry exists anywhere — that absence is the egress lockdown.
+# Shared by both private subnets — routing is AZ-agnostic (no NAT/IGW to route to).
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.this.id
   tags   = merge(local.tags, { Name = "${local.name}-private-rt" })
@@ -30,6 +38,11 @@ resource "aws_route_table" "private" {
 
 resource "aws_route_table_association" "private" {
   subnet_id      = aws_subnet.private.id
+  route_table_id = aws_route_table.private.id
+}
+
+resource "aws_route_table_association" "private_b" {
+  subnet_id      = aws_subnet.private_b.id
   route_table_id = aws_route_table.private.id
 }
 
@@ -109,7 +122,7 @@ resource "aws_vpc_endpoint" "interface" {
   vpc_id              = aws_vpc.this.id
   service_name        = each.value
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = [aws_subnet.private.id]
+  subnet_ids          = [aws_subnet.private.id, aws_subnet.private_b.id]
   security_group_ids  = [aws_security_group.endpoints.id]
   private_dns_enabled = true
   tags                = merge(local.tags, { Name = "${local.name}-${each.key}" })

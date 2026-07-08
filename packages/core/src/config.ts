@@ -2,7 +2,7 @@ export interface Config {
   region: string;
   ecsCluster: string;
   taskFamily: string;
-  subnetId: string;
+  subnetIds: string[];
   securityGroupId: string;
   resultsBucket: string;
   executionRoleArn: string;
@@ -31,12 +31,20 @@ function requireInt(name: string): number {
   return val;
 }
 
+function requireList(name: string): string[] {
+  const items = requireEnv(name).split(',').map(s => s.trim()).filter(Boolean);
+  if (items.length === 0) {
+    throw new Error(`Env var ${name} must contain at least one comma-separated value`);
+  }
+  return items;
+}
+
 export function loadConfig(): Config {
   return {
     region:             requireEnv('AWS_REGION'),
     ecsCluster:         requireEnv('WEIR_ECS_CLUSTER'),
     taskFamily:         requireEnv('WEIR_TASK_FAMILY'),
-    subnetId:           requireEnv('WEIR_SUBNET_ID'),
+    subnetIds:          requireList('WEIR_SUBNET_IDS'),
     securityGroupId:    requireEnv('WEIR_SECURITY_GROUP_ID'),
     resultsBucket:      requireEnv('WEIR_RESULTS_BUCKET'),
     executionRoleArn:   requireEnv('WEIR_EXECUTION_ROLE_ARN'),

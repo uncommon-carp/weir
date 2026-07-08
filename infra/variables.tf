@@ -28,9 +28,15 @@ variable "vpc_cidr" {
 }
 
 variable "private_subnet_cidr" {
-  description = "CIDR for the single private subnet the scan task runs in."
+  description = "CIDR for the private subnet in AZ a (scan task ENI, VPC endpoints)."
   type        = string
   default     = "10.20.1.0/24"
+}
+
+variable "private_subnet_cidr_b" {
+  description = "CIDR for the second private subnet in AZ b, for multi-AZ resilience."
+  type        = string
+  default     = "10.20.2.0/24"
 }
 
 variable "task_cpu" {
