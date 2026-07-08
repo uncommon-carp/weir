@@ -53,7 +53,7 @@ export class EcsOrchestrator {
   }
 
   private buildContainerDefinitions(): ContainerDefinition[] {
-    const { ecrTargetRepo, ecrSentinelRepo, resultsBucket, runId, region } = this.config;
+    const { ecrTargetRepo, ecrSentinelRepo, resultsBucket, runId, region, logGroupName } = this.config;
     return [
       {
         name: 'target',
@@ -74,7 +74,7 @@ export class EcsOrchestrator {
         logConfiguration: {
           logDriver: 'awslogs',
           options: {
-            'awslogs-group': '/ecs/sentinel-gate',
+            'awslogs-group': logGroupName,
             'awslogs-region': region,
             'awslogs-stream-prefix': 'target',
           },
@@ -93,7 +93,7 @@ export class EcsOrchestrator {
         logConfiguration: {
           logDriver: 'awslogs',
           options: {
-            'awslogs-group': '/ecs/sentinel-gate',
+            'awslogs-group': logGroupName,
             'awslogs-region': region,
             'awslogs-stream-prefix': 'sentinel',
           },

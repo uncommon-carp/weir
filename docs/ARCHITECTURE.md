@@ -192,6 +192,7 @@ All runtime config flows through environment variables, read by `packages/core/s
 | `WEIR_SCHEDULER_ROLE_ARN` | SSM | Passed to CreateSchedule |
 | `WEIR_ECR_TARGET_REPO` | SSM | ECR repo URL for target images |
 | `WEIR_ECR_SENTINEL_REPO` | SSM | ECR repo URL for Sentinel image |
+| `WEIR_LOG_GROUP` | SSM | CloudWatch log group for both containers |
 | `WEIR_MAX_CONCURRENT_SCANS` | SSM | Soft concurrency cap |
 | `WEIR_TEARDOWN_MINUTES` | SSM | Backstop TTL |
 | `WEIR_TARGET_IMAGE_TAG` | GHA (`github.sha`) | PR build tag |
@@ -262,5 +263,4 @@ Tier-1 and Tier-2 are on the Sentinel roadmap as opt-in. Tier-2 mutating checks 
 
 - **`action.yml` references pre-built `dist/`.** Composite Actions can't build before running. Options: commit `dist/` on releases, or switch to a composite action with explicit build steps. Decide before wiring Anemone.
 - **`ScanReport` shape is a placeholder.** Pin to Sentinel's actual output once the S3 feature ships.
-- **Log group name is hardcoded** in `ecs.ts` container definitions (`/ecs/sentinel-gate`). Should read from config/TF output.
 - **Single AZ.** The private subnet is in `${region}a` only. Fine for a dev/portfolio gate; add a second subnet for resilience if this ever runs in anger.

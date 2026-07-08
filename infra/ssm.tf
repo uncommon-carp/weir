@@ -14,6 +14,7 @@ locals {
     "scheduler-role-arn"   = aws_iam_role.scheduler.arn
     "ecr-target-repo"      = aws_ecr_repository.target.repository_url
     "ecr-sentinel-repo"    = aws_ecr_repository.sentinel.repository_url
+    "log-group"            = aws_cloudwatch_log_group.scan.name
     "max-concurrent-scans" = tostring(var.max_concurrent_scans)
     "teardown-minutes"     = tostring(var.teardown_minutes)
   }

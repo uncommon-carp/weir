@@ -10,6 +10,7 @@ export interface Config {
   schedulerRoleArn: string;
   ecrTargetRepo: string;
   ecrSentinelRepo: string;
+  logGroupName: string;
   maxConcurrentScans: number;
   teardownMinutes: number;
   // Per-run, injected by the CLI from GHA context
@@ -43,6 +44,7 @@ export function loadConfig(): Config {
     schedulerRoleArn:   requireEnv('WEIR_SCHEDULER_ROLE_ARN'),
     ecrTargetRepo:      requireEnv('WEIR_ECR_TARGET_REPO'),
     ecrSentinelRepo:    requireEnv('WEIR_ECR_SENTINEL_REPO'),
+    logGroupName:       requireEnv('WEIR_LOG_GROUP'),
     maxConcurrentScans: requireInt('WEIR_MAX_CONCURRENT_SCANS'),
     teardownMinutes:    requireInt('WEIR_TEARDOWN_MINUTES'),
     targetImageTag:     requireEnv('WEIR_TARGET_IMAGE_TAG'),

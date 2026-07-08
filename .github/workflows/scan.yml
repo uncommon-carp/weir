@@ -36,6 +36,7 @@ jobs:
           echo "WEIR_SCHEDULER_ROLE_ARN=$(aws ssm get-parameter --name /weir/ci/scheduler-role-arn --query Parameter.Value --output text)"       >> $GITHUB_ENV
           echo "WEIR_ECR_TARGET_REPO=$(aws ssm get-parameter --name /weir/ci/ecr-target-repo --query Parameter.Value --output text)"             >> $GITHUB_ENV
           echo "WEIR_ECR_SENTINEL_REPO=$(aws ssm get-parameter --name /weir/ci/ecr-sentinel-repo --query Parameter.Value --output text)"         >> $GITHUB_ENV
+          echo "WEIR_LOG_GROUP=$(aws ssm get-parameter --name /weir/ci/log-group --query Parameter.Value --output text)"                         >> $GITHUB_ENV
           echo "WEIR_MAX_CONCURRENT_SCANS=$(aws ssm get-parameter --name /weir/ci/max-concurrent-scans --query Parameter.Value --output text)"   >> $GITHUB_ENV
           echo "WEIR_TEARDOWN_MINUTES=$(aws ssm get-parameter --name /weir/ci/teardown-minutes --query Parameter.Value --output text)"           >> $GITHUB_ENV
           echo "AWS_REGION=${{ vars.WEIR_AWS_REGION }}"                                  >> $GITHUB_ENV
