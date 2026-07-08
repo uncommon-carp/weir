@@ -161,7 +161,8 @@ weir/
 │   ├── ecs.tf                 # cluster, ECR repos, log group, task def
 │   ├── s3.tf                  # results bucket
 │   ├── observability.tf       # billing alarm + SNS
-│   └── outputs.tf             # everything the CLI + GHA consume
+│   ├── ssm.tf                 # publishes CI config to SSM Parameter Store
+│   └── outputs.tf             # everything the CLI consumes; human/local `terraform output` use
 ├── action.yml                 # GitHub Action wrapper → packages/cli/dist/cli.js
 └── .github/workflows/
     ├── ci.yml                 # lint + terraform validate + build on push/PR
@@ -176,28 +177,28 @@ weir/
 
 ## Configuration
 
-All runtime config flows through environment variables, read by `packages/core/src/config.ts` on startup. In CI, the `scan.yml` workflow populates these from `terraform output` after assuming the OIDC role.
+All runtime config flows through environment variables, read by `packages/core/src/config.ts` on startup. In CI, the `scan.yml` workflow populates these from AWS SSM Parameter Store (published under `/weir/ci/*` by `terraform apply`, see `infra/ssm.tf`) after assuming the OIDC role.
 
 | Variable | Source | Description |
 |---|---|---|
 | `AWS_REGION` | GHA var | Region everything lives in |
-| `WEIR_ECS_CLUSTER` | TF output | ECS cluster name |
-| `WEIR_TASK_FAMILY` | TF output | Task definition family |
-| `WEIR_SUBNET_ID` | TF output | Private subnet for RunTask |
-| `WEIR_SECURITY_GROUP_ID` | TF output | Task SG (no ingress, 443 egress to endpoints) |
-| `WEIR_RESULTS_BUCKET` | TF output | S3 bucket for scan reports |
-| `WEIR_EXECUTION_ROLE_ARN` | TF output | Passed to RunTask |
-| `WEIR_TASK_ROLE_ARN` | TF output | Passed to RunTask |
-| `WEIR_SCHEDULER_ROLE_ARN` | TF output | Passed to CreateSchedule |
-| `WEIR_ECR_TARGET_REPO` | TF output | ECR repo URL for target images |
-| `WEIR_ECR_SENTINEL_REPO` | TF output | ECR repo URL for Sentinel image |
-| `WEIR_MAX_CONCURRENT_SCANS` | TF output | Soft concurrency cap |
-| `WEIR_TEARDOWN_MINUTES` | TF output | Backstop TTL |
+| `WEIR_ECS_CLUSTER` | SSM | ECS cluster name |
+| `WEIR_TASK_FAMILY` | SSM | Task definition family |
+| `WEIR_SUBNET_ID` | SSM | Private subnet for RunTask |
+| `WEIR_SECURITY_GROUP_ID` | SSM | Task SG (no ingress, 443 egress to endpoints) |
+| `WEIR_RESULTS_BUCKET` | SSM | S3 bucket for scan reports |
+| `WEIR_EXECUTION_ROLE_ARN` | SSM | Passed to RunTask |
+| `WEIR_TASK_ROLE_ARN` | SSM | Passed to RunTask |
+| `WEIR_SCHEDULER_ROLE_ARN` | SSM | Passed to CreateSchedule |
+| `WEIR_ECR_TARGET_REPO` | SSM | ECR repo URL for target images |
+| `WEIR_ECR_SENTINEL_REPO` | SSM | ECR repo URL for Sentinel image |
+| `WEIR_MAX_CONCURRENT_SCANS` | SSM | Soft concurrency cap |
+| `WEIR_TEARDOWN_MINUTES` | SSM | Backstop TTL |
 | `WEIR_TARGET_IMAGE_TAG` | GHA (`github.sha`) | PR build tag |
 | `WEIR_RUN_ID` | GHA run ID + attempt | S3 key + schedule name |
 | `WEIR_VERBOSE` | optional, unset by default | `"true"` enables debug-level logging (task polling, schedule create/cancel, S3 reads) |
 
-**Note on TF output approach.** The `scan.yml` workflow reads outputs via `terraform init -backend=false` + `terraform output`. This works with local state but breaks with remote state (needs backend init with credentials). Migration path: publish outputs to SSM Parameter Store in Terraform, read with `aws ssm get-parameter` in the workflow. Do this when remote state is set up.
+**SSM, not `terraform output`.** `infra/ssm.tf` publishes every value above CI needs to `/weir/ci/*` as part of `terraform apply`; `scan.yml` reads them with `aws ssm get-parameter`. CI never runs a `terraform` command and has no dependency on Terraform state or backend credentials — this was previously a real gap (`terraform init -backend=false` + `terraform output` breaks the moment a remote backend is configured) and is now resolved.
 
 ---
 
@@ -259,7 +260,6 @@ Tier-1 and Tier-2 are on the Sentinel roadmap as opt-in. Tier-2 mutating checks 
 
 ## Known rough edges
 
-- **TF output in scan.yml breaks with remote state.** See Configuration note above. Migrate to SSM when remote state is set up.
 - **`action.yml` references pre-built `dist/`.** Composite Actions can't build before running. Options: commit `dist/` on releases, or switch to a composite action with explicit build steps. Decide before wiring Anemone.
 - **`ScanReport` shape is a placeholder.** Pin to Sentinel's actual output once the S3 feature ships.
 - **Log group name is hardcoded** in `ecs.ts` container definitions (`/ecs/sentinel-gate`). Should read from config/TF output.
