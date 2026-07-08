@@ -1,5 +1,6 @@
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import type { Config } from './config.js';
+import type { Logger } from './logger.js';
 
 // Matches Sentinel's output shape. Pin this interface to Sentinel's actual
 // report format once the S3 output feature is implemented.
@@ -41,7 +42,7 @@ export class ResultsReader {
   private client: S3Client;
   private key: string;
 
-  constructor(private config: Config) {
+  constructor(private config: Config, private logger: Logger) {
     this.client = new S3Client({ region: config.region });
     this.key = `results/${config.runId}.json`;
   }
@@ -54,7 +55,13 @@ export class ResultsReader {
       })
     );
     if (!Body) throw new Error(`Empty S3 response for ${this.key}`);
-    return JSON.parse(await Body.transformToString()) as ScanReport;
+    const report = JSON.parse(await Body.transformToString()) as ScanReport;
+    this.logger.debug('Read scan report from S3', {
+      event: 'weir.results.read',
+      s3Uri: this.s3Uri(),
+      findingCount: report.findings?.length ?? 0,
+    });
+    return report;
   }
 
   s3Uri(): string {

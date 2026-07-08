@@ -8,6 +8,7 @@ import {
   type ContainerDefinition,
 } from '@aws-sdk/client-ecs';
 import type { Config } from './config.js';
+import type { Logger } from './logger.js';
 
 export interface RunResult {
   taskArn: string;
@@ -18,7 +19,7 @@ export interface RunResult {
 export class EcsOrchestrator {
   private client: ECSClient;
 
-  constructor(private config: Config) {
+  constructor(private config: Config, private logger: Logger) {
     this.client = new ECSClient({ region: config.region });
   }
 
@@ -42,6 +43,12 @@ export class EcsOrchestrator {
     if (!taskDefinition?.taskDefinitionArn) {
       throw new Error('RegisterTaskDefinition returned no ARN');
     }
+    this.logger.debug('Registered task definition revision', {
+      event: 'weir.taskdef.register',
+      taskFamily: this.config.taskFamily,
+      taskDefinitionArn: taskDefinition.taskDefinitionArn,
+      targetImageTag: this.config.targetImageTag,
+    });
     return taskDefinition.taskDefinitionArn;
   }
 
@@ -140,6 +147,11 @@ export class EcsOrchestrator {
       const failure = result.failures?.[0];
       throw new Error(`RunTask failed: ${failure?.reason ?? 'unknown'}`);
     }
+    this.logger.debug('Launched scan task', {
+      event: 'weir.task.run',
+      taskArn,
+      activeBeforeLaunch: active,
+    });
     return taskArn;
   }
 
@@ -161,8 +173,21 @@ export class EcsOrchestrator {
       const task = tasks?.[0];
       if (!task) throw new Error(`Task ${taskArn} not found`);
 
+      this.logger.debug('Polled task status', {
+        event: 'weir.task.poll',
+        taskArn,
+        lastStatus: task.lastStatus,
+        nextDelayMs: delay,
+      });
+
       if (task.lastStatus === 'STOPPED') {
         const sentinel = task.containers?.find(c => c.name === 'sentinel');
+        this.logger.debug('Task stopped', {
+          event: 'weir.task.stopped',
+          taskArn,
+          exitCode: sentinel?.exitCode,
+          stoppedReason: task.stoppedReason,
+        });
         return {
           taskArn,
           exitCode: sentinel?.exitCode,
@@ -174,6 +199,7 @@ export class EcsOrchestrator {
   }
 
   async stopTask(taskArn: string, reason: string): Promise<void> {
+    this.logger.debug('Stopping task', { event: 'weir.task.stop', taskArn, reason });
     await this.client.send(
       new StopTaskCommand({
         cluster: this.config.ecsCluster,

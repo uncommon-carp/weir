@@ -8,3 +8,6 @@ export { TeardownScheduler } from './scheduler.js';
 
 export { ResultsReader } from './results.js';
 export type { ScanReport, Finding, SuiteError, ReporterError, RunMeta } from './results.js';
+
+export { createLogger } from './logger.js';
+export type { Logger, DebugEvent } from './logger.js';
