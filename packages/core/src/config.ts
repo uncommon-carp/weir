@@ -15,6 +15,7 @@ export interface Config {
   // Per-run, injected by the CLI from GHA context
   targetImageTag: string;
   runId: string;
+  verbose: boolean;
 }
 
 function requireEnv(name: string): string {
@@ -46,5 +47,6 @@ export function loadConfig(): Config {
     teardownMinutes:    requireInt('WEIR_TEARDOWN_MINUTES'),
     targetImageTag:     requireEnv('WEIR_TARGET_IMAGE_TAG'),
     runId:              requireEnv('WEIR_RUN_ID'),
+    verbose:            process.env.WEIR_VERBOSE === 'true',
   };
 }

@@ -5,12 +5,13 @@ import {
   FlexibleTimeWindowMode,
 } from '@aws-sdk/client-scheduler';
 import type { Config } from './config.js';
+import type { Logger } from './logger.js';
 
 export class TeardownScheduler {
   private client: SchedulerClient;
   private scheduleName: string;
 
-  constructor(private config: Config) {
+  constructor(private config: Config, private logger: Logger) {
     this.client = new SchedulerClient({ region: config.region });
     this.scheduleName = `sentinel-gate-${config.runId}`;
   }
@@ -37,6 +38,13 @@ export class TeardownScheduler {
         },
       })
     );
+
+    this.logger.debug('Created teardown backstop schedule', {
+      event: 'weir.scheduler.create',
+      scheduleName: this.scheduleName,
+      taskArn,
+      fireAt: fireAt.toISOString(),
+    });
   }
 
   async cancel(): Promise<void> {
@@ -44,6 +52,10 @@ export class TeardownScheduler {
       await this.client.send(
         new DeleteScheduleCommand({ Name: this.scheduleName })
       );
+      this.logger.debug('Cancelled teardown backstop schedule', {
+        event: 'weir.scheduler.cancel',
+        scheduleName: this.scheduleName,
+      });
     } catch (err: any) {
       if (err?.name !== 'ResourceNotFoundException') throw err;
     }

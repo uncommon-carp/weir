@@ -195,6 +195,7 @@ All runtime config flows through environment variables, read by `packages/core/s
 | `WEIR_TEARDOWN_MINUTES` | TF output | Backstop TTL |
 | `WEIR_TARGET_IMAGE_TAG` | GHA (`github.sha`) | PR build tag |
 | `WEIR_RUN_ID` | GHA run ID + attempt | S3 key + schedule name |
+| `WEIR_VERBOSE` | optional, unset by default | `"true"` enables debug-level logging (task polling, schedule create/cancel, S3 reads) |
 
 **Note on TF output approach.** The `scan.yml` workflow reads outputs via `terraform init -backend=false` + `terraform output`. This works with local state but breaks with remote state (needs backend init with credentials). Migration path: publish outputs to SSM Parameter Store in Terraform, read with `aws ssm get-parameter` in the workflow. Do this when remote state is set up.
 
