@@ -53,14 +53,23 @@ export class EcsOrchestrator {
   }
 
   private buildContainerDefinitions(): ContainerDefinition[] {
-    const { ecrTargetRepo, ecrSentinelRepo, resultsBucket, runId, region, logGroupName } = this.config;
+    const { ecrTargetRepo, ecrSentinelRepo, resultsBucket, runId, region, logGroupName, targetEnvOverrides } = this.config;
+
+    if (Object.keys(targetEnvOverrides).length > 0) {
+      this.logger.debug('Applying target env overrides', {
+        event: 'weir.target.env.override',
+        overrides: targetEnvOverrides,
+      });
+    }
+    const targetEnv = { PORT: '3000', ...targetEnvOverrides };
+
     return [
       {
         name: 'target',
         image: `${ecrTargetRepo}:${this.config.targetImageTag}`,
         essential: false,
         portMappings: [{ containerPort: 3000, protocol: 'tcp' }],
-        environment: [{ name: 'PORT', value: '3000' }],
+        environment: Object.entries(targetEnv).map(([name, value]) => ({ name, value })),
         healthCheck: {
           command: [
             'CMD-SHELL',

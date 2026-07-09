@@ -1,8 +1,10 @@
 region      = "us-east-1"
 name_prefix = "sentinel-gate"
 
-# org/repo allowed to assume the CI role via OIDC
-github_repo = "uncommon-carp/sentinel-gate"
+# org/repos allowed to assume the CI role via OIDC — one entry per repo that
+# calls scan.yml as a reusable workflow (include this repo itself, plus every
+# target repo you've wired up per the "Connecting a target repo" README section)
+github_repos = ["uncommon-carp/sentinel-gate"]
 
 # Cost guardrails
 billing_alarm_threshold_usd = 25

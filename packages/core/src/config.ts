@@ -17,6 +17,7 @@ export interface Config {
   targetImageTag: string;
   runId: string;
   verbose: boolean;
+  targetEnvOverrides: Record<string, string>;
 }
 
 function requireEnv(name: string): string {
@@ -39,6 +40,26 @@ function requireList(name: string): string[] {
   return items;
 }
 
+function optionalJsonRecord(name: string): Record<string, string> {
+  const raw = process.env[name];
+  if (!raw || raw === '{}') return {};
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`Env var ${name} must be valid JSON`);
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`Env var ${name} must be a flat JSON object of string values`);
+  }
+  for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+    if (typeof v !== 'string') {
+      throw new Error(`Env var ${name}: value for "${k}" must be a string`);
+    }
+  }
+  return parsed as Record<string, string>;
+}
+
 export function loadConfig(): Config {
   return {
     region:             requireEnv('AWS_REGION'),
@@ -58,5 +79,6 @@ export function loadConfig(): Config {
     targetImageTag:     requireEnv('WEIR_TARGET_IMAGE_TAG'),
     runId:              requireEnv('WEIR_RUN_ID'),
     verbose:            process.env.WEIR_VERBOSE === 'true',
+    targetEnvOverrides: optionalJsonRecord('WEIR_TARGET_ENV'),
   };
 }

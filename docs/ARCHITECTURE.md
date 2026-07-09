@@ -199,6 +199,7 @@ All runtime config flows through environment variables, read by `packages/core/s
 | `WEIR_TARGET_IMAGE_TAG` | GHA (`github.sha`) | PR build tag |
 | `WEIR_RUN_ID` | GHA run ID + attempt | S3 key + schedule name |
 | `WEIR_VERBOSE` | optional, unset by default | `"true"` enables debug-level logging (task polling, schedule create/cancel, S3 reads) |
+| `WEIR_TARGET_ENV` | GHA `target-env` input, optional, default `{}` | JSON object of env var overrides merged into the target container's environment — lets a caller run a scan against a specific misconfiguration profile instead of the target's default state |
 
 **SSM, not `terraform output`.** `infra/ssm.tf` publishes every value above CI needs to `/weir/ci/*` as part of `terraform apply`; `scan.yml` reads them with `aws ssm get-parameter`. CI never runs a `terraform` command and has no dependency on Terraform state or backend credentials — this was previously a real gap (`terraform init -backend=false` + `terraform output` breaks the moment a remote backend is configured) and is now resolved.
 

@@ -84,12 +84,14 @@ data "aws_iam_policy_document" "gha_assume" {
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
-    # Scope to this repo only. Tighten to a branch/environment later if wanted,
-    # e.g. "repo:org/repo:ref:refs/heads/main".
+    # Explicit per-repo allowlist. Every repo that calls scan.yml as a reusable
+    # workflow needs its own entry here — the OIDC 'sub' claim reflects the
+    # CALLING repo, not this one. Deliberately not job_workflow_ref-scoped
+    # (that would trust literally any repo that references this workflow file).
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:*"]
+      values   = [for repo in var.github_repos : "repo:${repo}:*"]
     }
   }
 }
