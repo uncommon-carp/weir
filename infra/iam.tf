@@ -129,6 +129,18 @@ data "aws_iam_policy_document" "gha_perms" {
     actions   = ["ecs:RegisterTaskDefinition", "ecs:DescribeTaskDefinition"]
     resources = ["*"] # RegisterTaskDefinition does not support resource-level scoping
   }
+  # RegisterTaskDefinition is called with a `tags` argument (see
+  # EcsOrchestrator.registerRevision) — AWS requires ecs:TagResource as a
+  # separate permission whenever tags are attached at creation time, even
+  # though the action doing the tagging is RegisterTaskDefinition, not
+  # TagResource itself. Unlike RegisterTaskDefinition, TagResource does
+  # support resource-level scoping, so this is scoped to the one family Weir
+  # registers revisions under.
+  statement {
+    sid       = "EcsTagOnRegister"
+    actions   = ["ecs:TagResource"]
+    resources = ["arn:aws:ecs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:task-definition/${local.name}-scan:*"]
+  }
   statement {
     sid       = "EcsRun"
     actions   = ["ecs:RunTask", "ecs:StopTask", "ecs:DescribeTasks", "ecs:ListTasks"]
