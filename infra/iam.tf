@@ -129,6 +129,22 @@ data "aws_iam_policy_document" "gha_perms" {
     actions   = ["ecs:RegisterTaskDefinition", "ecs:DescribeTaskDefinition"]
     resources = ["*"] # RegisterTaskDefinition does not support resource-level scoping
   }
+  # Both RegisterTaskDefinition (EcsOrchestrator.registerRevision) and RunTask
+  # (EcsOrchestrator.runTask) are called with a `tags` argument. AWS requires
+  # ecs:TagResource as a separate permission whenever tags are attached at
+  # creation time, even though the action actually doing the tagging is
+  # RegisterTaskDefinition/RunTask, not TagResource itself. Unlike those two,
+  # TagResource does support resource-level scoping — one statement per
+  # resource type Weir creates tagged instances of (task-definition
+  # revisions under the one family, and tasks in the one cluster).
+  statement {
+    sid     = "EcsTagOnCreate"
+    actions = ["ecs:TagResource"]
+    resources = [
+      "arn:aws:ecs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:task-definition/${local.name}-scan:*",
+      "arn:aws:ecs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:task/${local.name}/*",
+    ]
+  }
   statement {
     sid       = "EcsRun"
     actions   = ["ecs:RunTask", "ecs:StopTask", "ecs:DescribeTasks", "ecs:ListTasks"]
