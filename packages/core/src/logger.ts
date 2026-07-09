@@ -6,7 +6,8 @@ export type DebugEvent =
   | 'weir.task.stop'
   | 'weir.scheduler.create'
   | 'weir.scheduler.cancel'
-  | 'weir.results.read';
+  | 'weir.results.read'
+  | 'weir.target.env.override';
 
 export type Logger = {
   info(msg: string, data?: Record<string, unknown>): void;

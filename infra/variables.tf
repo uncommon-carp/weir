@@ -16,9 +16,9 @@ variable "name_prefix" {
   default     = "sentinel-gate"
 }
 
-variable "github_repo" {
-  description = "GitHub repo allowed to assume the CI role, as 'org/repo'. Used in the OIDC trust policy 'sub' condition."
-  type        = string
+variable "github_repos" {
+  description = "GitHub repos allowed to assume the CI role via OIDC, each as 'org/repo'. Weir itself (for its own CI) plus every target repo wired to call scan.yml — reusable-workflow OIDC 'sub' claims reflect the calling repo, not this one."
+  type        = list(string)
 }
 
 variable "vpc_cidr" {

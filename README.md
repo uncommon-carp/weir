@@ -78,10 +78,18 @@ jobs:
     uses: uncommon-carp/weir/.github/workflows/scan.yml@main
     with:
       target-image-tag: ${{ github.sha }}
+      # optional — JSON object of env var overrides for the target container,
+      # e.g. to run against a specific misconfiguration profile instead of
+      # the target's default state
+      # target-env: '{"AUTH_REQUIRED":"true"}'
     secrets: inherit
 ```
 
-Set `WEIR_GHA_ROLE_ARN` and `WEIR_AWS_REGION` as repository variables. Done.
+Set `WEIR_GHA_ROLE_ARN` and `WEIR_AWS_REGION` as repository variables. Then
+add `org/your-repo` to `github_repos` in Weir's `infra/terraform.tfvars` and
+`terraform apply` — the OIDC trust policy is an explicit per-repo allowlist,
+scan.yml's OIDC token reflects the *calling* repo's identity, not Weir's, so
+without this the role assumption fails closed with `AccessDenied`. Done.
 
 ## Infra
 
