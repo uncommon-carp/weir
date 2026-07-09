@@ -83,9 +83,9 @@ jobs:
         working-directory: .weir
         run: npm ci
 
-      - name: build cli
+      - name: build weir
         working-directory: .weir
-        run: npm run build --workspace=packages/cli
+        run: npm run build
 
       - name: run weir
         working-directory: .weir
