@@ -21,7 +21,12 @@ jobs:
     name: weir scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Checks out the CALLING repo (the target being scanned) — for a
+      # workflow_call, checkout defaults to whatever repo triggered this run,
+      # not this reusable workflow's own repo. Needed here to build the
+      # target's own Dockerfile in "push target image" below.
+      - name: checkout target repo
+        uses: actions/checkout@v4
 
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -57,17 +62,33 @@ jobs:
             -t $WEIR_ECR_TARGET_REPO:$WEIR_TARGET_IMAGE_TAG .
           docker push $WEIR_ECR_TARGET_REPO:$WEIR_TARGET_IMAGE_TAG
 
+      # Weir's own source, checked out explicitly into a subdirectory — the
+      # CLI (packages/cli) doesn't exist in the target repo's checkout above.
+      # Deliberately checked out *after* the docker build above, so it's
+      # never part of the target's build context (avoids bloating/leaking
+      # into images for target repos whose Dockerfile does a bare `COPY . .`).
+      - name: checkout weir
+        uses: actions/checkout@v4
+        with:
+          repository: uncommon-carp/weir
+          path: .weir
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
+          cache-dependency-path: .weir/package-lock.json
 
-      - run: npm ci
+      - name: install weir deps
+        working-directory: .weir
+        run: npm ci
 
       - name: build cli
+        working-directory: .weir
         run: npm run build --workspace=packages/cli
 
       - name: run weir
+        working-directory: .weir
         env:
           WEIR_TARGET_ENV: ${{ inputs.target-env }}
         run: node packages/cli/dist/cli.js
