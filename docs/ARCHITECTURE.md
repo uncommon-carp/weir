@@ -18,7 +18,7 @@ Anemone PR
         ├─ OIDC assume gha role (no stored keys)
         ├─ build + push Anemone image (tagged :$SHA)
         ├─ register Fargate task-def revision (target image pinned to $SHA)
-        ├─ RunTask → private subnet, assignPublicIp=DISABLED
+        ├─ RunTask → private subnets (multi-AZ), assignPublicIp=DISABLED
         │     ├─ container: target  (Anemone :$SHA, port 3000)
         │     └─ container: sentinel (scans http://localhost:3000)
         │           └─ PutObject → s3://results-bucket/results/$RUN_ID.json
@@ -36,20 +36,21 @@ Each artifact is consumed by the next. Anemone is the subject, Sentinel is the s
 ```
 AWS Account
 └─ VPC (10.20.0.0/16)
-   └─ Private subnet (10.20.1.0/24)
-      ├─ No Internet Gateway
-      ├─ No NAT Gateway
-      ├─ No 0.0.0.0/0 route anywhere
-      │
-      ├─ Fargate scan task (one ENI, task SG)
-      │   ├─ target container   :3000
-      │   └─ sentinel container → localhost:3000
-      │
-      └─ VPC Endpoints (the only egress)
-          ├─ ecr.api  (interface) — task def / image metadata
-          ├─ ecr.dkr  (interface) — image layer pull
-          ├─ logs     (interface) — CloudWatch log delivery
-          └─ s3       (gateway)  — ECR layer blobs + results upload
+   ├─ Private subnet A (10.20.1.0/24) — ${region}a
+   ├─ Private subnet B (10.20.2.0/24) — ${region}b
+   │     ├─ No Internet Gateway
+   │     ├─ No NAT Gateway
+   │     ├─ No 0.0.0.0/0 route anywhere
+   │     │
+   │     ├─ Fargate scan task (one ENI, task SG — lands in whichever subnet ECS picks)
+   │     │   ├─ target container   :3000
+   │     │   └─ sentinel container → localhost:3000
+   │     │
+   │     └─ VPC Endpoints (the only egress; interface endpoints have an ENI in each subnet)
+   │         ├─ ecr.api  (interface) — task def / image metadata
+   │         ├─ ecr.dkr  (interface) — image layer pull
+   │         ├─ logs     (interface) — CloudWatch log delivery
+   │         └─ s3       (gateway)  — ECR layer blobs + results upload (route-table scoped, shared)
 ```
 
 **Why no NAT.** The task has no route to the public internet by construction, not by policy. This means:
@@ -156,7 +157,7 @@ weir/
 │   ├── versions.tf            # provider pins
 │   ├── variables.tf           # all inputs
 │   ├── main.tf                # locals, data sources
-│   ├── network.tf             # VPC, subnet, SG, VPC endpoints
+│   ├── network.tf             # VPC, subnets (multi-AZ), SG, VPC endpoints
 │   ├── iam.tf                 # four roles + policies
 │   ├── ecs.tf                 # cluster, ECR repos, log group, task def
 │   ├── s3.tf                  # results bucket
@@ -184,7 +185,7 @@ All runtime config flows through environment variables, read by `packages/core/s
 | `AWS_REGION` | GHA var | Region everything lives in |
 | `WEIR_ECS_CLUSTER` | SSM | ECS cluster name |
 | `WEIR_TASK_FAMILY` | SSM | Task definition family |
-| `WEIR_SUBNET_ID` | SSM | Private subnet for RunTask |
+| `WEIR_SUBNET_IDS` | SSM | Comma-separated private subnet IDs (AZ a + b) for RunTask |
 | `WEIR_SECURITY_GROUP_ID` | SSM | Task SG (no ingress, 443 egress to endpoints) |
 | `WEIR_RESULTS_BUCKET` | SSM | S3 bucket for scan reports |
 | `WEIR_EXECUTION_ROLE_ARN` | SSM | Passed to RunTask |
@@ -263,4 +264,3 @@ Tier-1 and Tier-2 are on the Sentinel roadmap as opt-in. Tier-2 mutating checks 
 
 - **`action.yml` references pre-built `dist/`.** Composite Actions can't build before running. Options: commit `dist/` on releases, or switch to a composite action with explicit build steps. Decide before wiring Anemone.
 - **`ScanReport` shape is a placeholder.** Pin to Sentinel's actual output once the S3 feature ships.
-- **Single AZ.** The private subnet is in `${region}a` only. Fine for a dev/portfolio gate; add a second subnet for resilience if this ever runs in anger.

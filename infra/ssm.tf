@@ -6,7 +6,7 @@ locals {
   ssm_parameters = {
     "ecs-cluster"          = aws_ecs_cluster.this.name
     "task-family"          = aws_ecs_task_definition.scan.family
-    "subnet-id"            = aws_subnet.private.id
+    "subnet-ids"           = join(",", [aws_subnet.private.id, aws_subnet.private_b.id])
     "security-group-id"    = aws_security_group.task.id
     "results-bucket"       = aws_s3_bucket.results.bucket
     "execution-role-arn"   = aws_iam_role.execution.arn

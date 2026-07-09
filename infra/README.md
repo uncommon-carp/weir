@@ -11,7 +11,7 @@ never exposed to the internet — it has no route there at all.
 GitHub Actions (OIDC, no stored keys)
    │  assume gha role → build/push target image → register task def → RunTask
    ▼
-ECS Fargate task (private subnet, no internet route)
+ECS Fargate task (private subnets, no internet route)
    ├─ target    : PR build of the vulnerable API, :3000
    └─ sentinel  : scans http://localhost:3000, writes report → S3, exits
    │
@@ -25,7 +25,7 @@ target over loopback. No proxy, no private-IP resolution, no service discovery.
 
 ## Why no NAT gateway
 
-The subnet has no Internet Gateway and no NAT — there is no `0.0.0.0/0` route
+The subnets have no Internet Gateway and no NAT — there is no `0.0.0.0/0` route
 anywhere. The task reaches AWS only through VPC endpoints (ECR API/DKR for image
 pull, S3 gateway for layer blobs and results, CloudWatch Logs). A compromised
 target container therefore cannot exfiltrate or make outbound connections;
@@ -86,8 +86,8 @@ Two glue pieces live in the application/CLI layer, not here:
    `aws s3 cp`s the result. The task role already grants `PutObject` there.
 
 2. **Orchestrator CLI.** Registers a task-def revision with the target image
-   pinned to the PR SHA, enforces the concurrency cap, `RunTask`s into the
-   private subnet + task SG with `assignPublicIp=DISABLED`, creates the one-shot
+   pinned to the PR SHA, enforces the concurrency cap, `RunTask`s into one of the
+   private subnets + task SG with `assignPublicIp=DISABLED`, creates the one-shot
    teardown schedule, polls `DescribeTasks` to `STOPPED`, reads the S3 report,
    exits nonzero on findings.
 

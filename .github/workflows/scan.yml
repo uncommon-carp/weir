@@ -28,7 +28,7 @@ jobs:
         run: |
           echo "WEIR_ECS_CLUSTER=$(aws ssm get-parameter --name /weir/ci/ecs-cluster --query Parameter.Value --output text)"                     >> $GITHUB_ENV
           echo "WEIR_TASK_FAMILY=$(aws ssm get-parameter --name /weir/ci/task-family --query Parameter.Value --output text)"                     >> $GITHUB_ENV
-          echo "WEIR_SUBNET_ID=$(aws ssm get-parameter --name /weir/ci/subnet-id --query Parameter.Value --output text)"                         >> $GITHUB_ENV
+          echo "WEIR_SUBNET_IDS=$(aws ssm get-parameter --name /weir/ci/subnet-ids --query Parameter.Value --output text)"                       >> $GITHUB_ENV
           echo "WEIR_SECURITY_GROUP_ID=$(aws ssm get-parameter --name /weir/ci/security-group-id --query Parameter.Value --output text)"         >> $GITHUB_ENV
           echo "WEIR_RESULTS_BUCKET=$(aws ssm get-parameter --name /weir/ci/results-bucket --query Parameter.Value --output text)"                >> $GITHUB_ENV
           echo "WEIR_EXECUTION_ROLE_ARN=$(aws ssm get-parameter --name /weir/ci/execution-role-arn --query Parameter.Value --output text)"       >> $GITHUB_ENV

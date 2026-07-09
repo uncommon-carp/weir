@@ -133,7 +133,7 @@ export class EcsOrchestrator {
         launchType: 'FARGATE',
         networkConfiguration: {
           awsvpcConfiguration: {
-            subnets: [this.config.subnetId],
+            subnets: this.config.subnetIds,
             securityGroups: [this.config.securityGroupId],
             assignPublicIp: 'DISABLED',
           },

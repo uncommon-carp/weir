@@ -17,8 +17,9 @@ output "task_family" {
   value = aws_ecs_task_definition.scan.family
 }
 
-output "subnet_id" {
-  value = aws_subnet.private.id
+output "subnet_ids" {
+  description = "Both private subnet IDs (AZ a, AZ b) for RunTask."
+  value       = [aws_subnet.private.id, aws_subnet.private_b.id]
 }
 
 output "task_security_group_id" {

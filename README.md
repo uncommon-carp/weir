@@ -19,7 +19,7 @@ Anemone PR → Weir scan.yml (reusable workflow)
   │  OIDC assume-role (no stored keys)
   │  build + push target image (PR SHA)
   │  register task-def revision
-  │  RunTask → private subnet, no public IP
+  │  RunTask → private subnet (multi-AZ), no public IP
   ▼
 Fargate task
   ├─ target   : PR build of Anemone :3000
