@@ -13,7 +13,7 @@ export class TeardownScheduler {
 
   constructor(private config: Config, private logger: Logger) {
     this.client = new SchedulerClient({ region: config.region });
-    this.scheduleName = `sentinel-gate-${config.runId}`;
+    this.scheduleName = config.runId;
   }
 
   async create(taskArn: string): Promise<void> {
