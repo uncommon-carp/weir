@@ -11,6 +11,11 @@ on:
         required: false
         type: string
         default: '{}'
+      target-auth-url:
+        description: URL (on the target's loopback address) Sentinel can fetch to obtain an auth token, e.g. 'http://localhost:3000/api/v2/auth'. Leave unset for unauthenticated scans.
+        required: false
+        type: string
+        default: ''
 
 permissions:
   id-token: write
@@ -91,4 +96,5 @@ jobs:
         working-directory: .weir
         env:
           WEIR_TARGET_ENV: ${{ inputs.target-env }}
+          WEIR_TARGET_AUTH_URL: ${{ inputs.target-auth-url }}
         run: node packages/cli/dist/cli.js

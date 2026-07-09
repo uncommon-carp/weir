@@ -53,7 +53,7 @@ export class EcsOrchestrator {
   }
 
   private buildContainerDefinitions(): ContainerDefinition[] {
-    const { ecrTargetRepo, ecrSentinelRepo, resultsBucket, runId, region, logGroupName, targetEnvOverrides } = this.config;
+    const { ecrTargetRepo, ecrSentinelRepo, resultsBucket, runId, region, logGroupName, targetEnvOverrides, targetAuthUrl } = this.config;
 
     if (Object.keys(targetEnvOverrides).length > 0) {
       this.logger.debug('Applying target env overrides', {
@@ -62,6 +62,21 @@ export class EcsOrchestrator {
       });
     }
     const targetEnv = { PORT: '3000', ...targetEnvOverrides };
+
+    if (targetAuthUrl) {
+      this.logger.debug('Passing auth token URL to sentinel', {
+        event: 'weir.sentinel.auth.configured',
+        targetAuthUrl,
+      });
+    }
+    const sentinelEnv: { name: string; value: string }[] = [
+      { name: 'TARGET_URL', value: 'http://localhost:3000' },
+      { name: 'RESULTS_BUCKET', value: resultsBucket },
+      { name: 'RUN_ID', value: runId },
+    ];
+    if (targetAuthUrl) {
+      sentinelEnv.push({ name: 'AUTH_TOKEN_URL', value: targetAuthUrl });
+    }
 
     return [
       {
@@ -94,11 +109,7 @@ export class EcsOrchestrator {
         image: `${ecrSentinelRepo}:latest`,
         essential: true,
         dependsOn: [{ containerName: 'target', condition: 'HEALTHY' }],
-        environment: [
-          { name: 'TARGET_URL', value: 'http://localhost:3000' },
-          { name: 'RESULTS_BUCKET', value: resultsBucket },
-          { name: 'RUN_ID', value: runId },
-        ],
+        environment: sentinelEnv,
         logConfiguration: {
           logDriver: 'awslogs',
           options: {
