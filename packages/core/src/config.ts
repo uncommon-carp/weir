@@ -18,6 +18,7 @@ export interface Config {
   runId: string;
   verbose: boolean;
   targetEnvOverrides: Record<string, string>;
+  targetAuthUrl: string | undefined;
 }
 
 function requireEnv(name: string): string {
@@ -38,6 +39,11 @@ function requireList(name: string): string[] {
     throw new Error(`Env var ${name} must contain at least one comma-separated value`);
   }
   return items;
+}
+
+function optionalEnv(name: string): string | undefined {
+  const val = process.env[name];
+  return val ? val : undefined;
 }
 
 function optionalJsonRecord(name: string): Record<string, string> {
@@ -80,5 +86,6 @@ export function loadConfig(): Config {
     runId:              requireEnv('WEIR_RUN_ID'),
     verbose:            process.env.WEIR_VERBOSE === 'true',
     targetEnvOverrides: optionalJsonRecord('WEIR_TARGET_ENV'),
+    targetAuthUrl:      optionalEnv('WEIR_TARGET_AUTH_URL'),
   };
 }

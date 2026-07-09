@@ -7,7 +7,8 @@ export type DebugEvent =
   | 'weir.scheduler.create'
   | 'weir.scheduler.cancel'
   | 'weir.results.read'
-  | 'weir.target.env.override';
+  | 'weir.target.env.override'
+  | 'weir.sentinel.auth.configured';
 
 export type Logger = {
   info(msg: string, data?: Record<string, unknown>): void;
