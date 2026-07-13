@@ -2,8 +2,18 @@ import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import type { Config } from './config.js';
 import type { Logger } from './logger.js';
 
-// Matches Sentinel's output shape. Pin this interface to Sentinel's actual
-// report format once the S3 output feature is implemented.
+// Matches Sentinel's RunResult shape (sentinel/src/core/types.ts) field-for-
+// field: meta/config/findings/suiteErrors/reporterErrors. Named ScanReport
+// rather than reusing RunResult on purpose: Weir doesn't import Sentinel's
+// package or share types across the process/repo boundary — a hand-
+// maintained mirror here, not dead placeholder code (Barbel's ADR-004 makes
+// the analogous call for its own orchestrator boundary, forking rather than
+// importing across a repo line). `Finding` here is intentionally looser
+// than Sentinel's (`id`/`severity`/`title` plus an index signature) since
+// Weir only ever reads those three fields to decide the exit code — it
+// doesn't need `whyItMatters`/`remediation`/etc. If Sentinel's actual shape
+// ever diverges, update this file to match — Weir adapts to Sentinel, not
+// the other way around (see "Sentinel is truth" in the root CLAUDE.md).
 
 export interface SuiteError {
   suite: string;

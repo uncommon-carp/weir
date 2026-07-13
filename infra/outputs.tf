@@ -63,3 +63,11 @@ output "max_concurrent_scans" {
 output "teardown_minutes" {
   value = var.teardown_minutes
 }
+
+output "target_port" {
+  value = var.target_port
+}
+
+output "target_health_check_path" {
+  value = var.target_health_check_path
+}

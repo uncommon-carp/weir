@@ -74,7 +74,7 @@ resource "aws_ecs_task_definition" "scan" {
         # node is in the target image, so avoid depending on curl/wget.
         command = [
           "CMD-SHELL",
-          "node -e \"require('http').get('http://localhost:${var.target_port}/api/v2/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""
+          "node -e \"require('http').get('http://localhost:${var.target_port}${var.target_health_check_path}',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""
         ]
         interval    = 5
         timeout     = 3

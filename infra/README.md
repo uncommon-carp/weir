@@ -1,4 +1,4 @@
-# Sentinel Gate — Infrastructure
+# Weir — Infrastructure
 
 Ephemeral, network-isolated DAST gate. On each pull request, CI builds the PR's
 version of the target API, runs it as a Fargate task with Sentinel scanning it
@@ -71,27 +71,34 @@ One-time account toggles:
 - If the account already has a GitHub OIDC provider, set
   `create_oidc_provider = false`.
 
-The baseline task definition references `:bootstrap` / `:latest` image tags that
-don't exist until the first CI push, so `terraform apply` provisions the shape
-but a real scan needs the pipeline to push images first.
+The baseline task definition references `:bootstrap` / `:latest` image tags.
+`scan.yml` builds and pushes a fresh target image on every run, so that side
+stays current automatically. The `weir/sentinel:latest` side does not — no CI
+job in this repo builds and pushes it; it's pushed manually from `sentinel/`
+(`docker build -t sentinel . && docker push`) whenever a new Sentinel release
+should go live. `terraform apply` alone provisions the ECR repo shape, not an
+image in it — a real scan needs at least one manual `weir/sentinel:latest`
+push to have ever happened.
 
-## APP-SIDE contract (not in Terraform)
+## Application-layer contract (not in Terraform)
 
-Two glue pieces live in the application/CLI layer, not here:
+Two glue pieces live in the application/CLI layer, not here — see
+`docs/ARCHITECTURE.md`'s "Sentinel contract" and "Task lifecycle" sections
+for the full detail; summarized here:
 
 1. **Sentinel → S3 upload.** The sentinel container receives `TARGET_URL`,
-   `RESULTS_BUCKET`, and `RUN_ID`. It must scan `TARGET_URL` and upload its JSON
-   report to `s3://$RESULTS_BUCKET/results/$RUN_ID.json`. Either teach Sentinel
-   an `--out s3://...` flag or wrap it in an entrypoint that runs the scan and
-   `aws s3 cp`s the result. The task role already grants `PutObject` there.
+   `RESULTS_BUCKET`, and `RUN_ID` (and `AUTH_TOKEN_URL` when Tier-1 auth is
+   configured), scans `TARGET_URL`, and uploads its JSON report to
+   `s3://$RESULTS_BUCKET/results/$RUN_ID.json` — natively, via Sentinel's own
+   pipeline-mode env-var config, not a wrapper entrypoint. The task role
+   grants `PutObject` there.
 
-2. **Orchestrator CLI.** Registers a task-def revision with the target image
-   pinned to the PR SHA, enforces the concurrency cap, `RunTask`s into one of the
-   private subnets + task SG with `assignPublicIp=DISABLED`, creates the one-shot
-   teardown schedule, polls `DescribeTasks` to `STOPPED`, reads the S3 report,
-   exits nonzero on findings.
-
-```
+2. **Orchestrator CLI** (`packages/core`/`packages/cli`). Registers a task-def
+   revision with the target image pinned to the PR SHA, enforces the
+   concurrency cap, `RunTask`s into one of the private subnets + task SG with
+   `assignPublicIp=DISABLED`, creates the one-shot teardown schedule, polls
+   `DescribeTasks` to `STOPPED`, reads the S3 report, exits nonzero on
+   findings.
 
 ## Per-run container overrides
 

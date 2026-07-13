@@ -124,9 +124,17 @@ data "aws_iam_policy_document" "gha_perms" {
   }
 
   # Drive the scan task.
+  #
+  # DescribeTaskDefinition was removed 2026-07-12: no code path in
+  # packages/core or packages/cli ever constructs a
+  # DescribeTaskDefinitionCommand (only RegisterTaskDefinitionCommand),
+  # confirmed both by static grep and by IAM Access Advisor's action-level
+  # last-accessed data for this role (zero recorded uses, alongside RunTask/
+  # DescribeTasks/ListTasks which the same query confirmed ARE in active
+  # use). See EPICS.md Story 8.7 for the verification writeup.
   statement {
     sid       = "EcsRegister"
-    actions   = ["ecs:RegisterTaskDefinition", "ecs:DescribeTaskDefinition"]
+    actions   = ["ecs:RegisterTaskDefinition"]
     resources = ["*"] # RegisterTaskDefinition does not support resource-level scoping
   }
   # Both RegisterTaskDefinition (EcsOrchestrator.registerRevision) and RunTask
@@ -187,10 +195,21 @@ data "aws_iam_policy_document" "gha_perms" {
   }
 
   # Read scan results back to surface them on the PR.
+  #
+  # ListBucket was removed 2026-07-12: ResultsReader.read() only ever issues
+  # GetObjectCommand for a known key (results/${runId}.json), never a bucket
+  # listing. Static analysis is confident here; live verification couldn't
+  # fully corroborate it — IAM Access Advisor doesn't track S3 at
+  # action-level granularity, and this account's CloudTrail trail only logs
+  # management events (no S3 data events configured), so neither could
+  # confirm or refute historical ListBucket calls directly. The bucket-level
+  # resource ARN (as opposed to the object-path ARN below) existed
+  # specifically to support ListBucket, so it comes out with it — GetObject
+  # only needs the object-path resource. See EPICS.md Story 8.7.
   statement {
     sid       = "ReadResults"
-    actions   = ["s3:GetObject", "s3:ListBucket"]
-    resources = [aws_s3_bucket.results.arn, "${aws_s3_bucket.results.arn}/results/*"]
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.results.arn}/results/*"]
   }
 
   # Read Terraform-published config so CI never runs `terraform` at all.

@@ -13,7 +13,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "lint": "eslint src"
+    "lint": "eslint src test",
+    "test": "vitest run"
   },
   "dependencies": {
     "@aws-sdk/client-ecs": "^3.0.0",
@@ -21,8 +22,12 @@
     "@aws-sdk/client-scheduler": "^3.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
     "@types/node": "^20.0.0",
+    "eslint": "^9.0.0",
     "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.54.0",
+    "vitest": "^4.1.8"
   }
 }

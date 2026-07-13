@@ -154,10 +154,43 @@ describe('runScan', () => {
       cancel: vi.fn().mockResolvedValue(undefined),
     };
     const results: ScanResults = { read: vi.fn(), s3Uri: vi.fn() };
+    const logger = silentLogger();
 
-    const exitCode = await runScan(ecs, scheduler, results, config, silentLogger());
+    const exitCode = await runScan(ecs, scheduler, results, config, logger);
 
     expect(exitCode).toBe(1);
     expect(scheduler.cancel).toHaveBeenCalledOnce();
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('failed to stop task arn:task:1'));
+  });
+
+  it('logs (instead of silently swallowing) a real error from scheduler.cancel()', async () => {
+    const ecs: ScanEcs = {
+      registerRevision: vi.fn().mockResolvedValue('arn:taskdef:1'),
+      runTask: vi.fn().mockResolvedValue('arn:task:1'),
+      waitForCompletion: vi.fn().mockResolvedValue({ taskArn: 'arn:task:1', exitCode: 0, stoppedReason: undefined }),
+      stopTask: vi.fn().mockResolvedValue(undefined),
+    };
+    const scheduler: ScanScheduler = {
+      create: vi.fn().mockResolvedValue(undefined),
+      // scheduler.cancel() itself already swallows ResourceNotFoundException
+      // internally, so anything it rejects with here is by construction a
+      // real error, not a "schedule already gone" no-op.
+      cancel: vi.fn().mockRejectedValue(new Error('DeleteSchedule throttled')),
+    };
+    const results: ScanResults = {
+      read: vi.fn().mockResolvedValue(emptyReport()),
+      s3Uri: vi.fn().mockReturnValue('s3://bucket/results/weir-test-1.json'),
+    };
+    const logger = silentLogger();
+
+    const exitCode = await runScan(ecs, scheduler, results, config, logger);
+
+    // A cancel() failure on an otherwise-clean scan shouldn't flip a
+    // passing exit code to failing — the backstop firing late is a
+    // cost/noise concern, not a scan-correctness one.
+    expect(exitCode).toBe(0);
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.stringContaining('failed to cancel teardown backstop for run weir-test-1')
+    );
   });
 });

@@ -1,6 +1,7 @@
 {
   "name": "@uncommon-carp/weir",
   "private": true,
+  "type": "module",
   "workspaces": [
     "packages/*"
   ],

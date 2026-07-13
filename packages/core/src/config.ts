@@ -13,6 +13,8 @@ export interface Config {
   logGroupName: string;
   maxConcurrentScans: number;
   teardownMinutes: number;
+  targetPort: number;
+  targetHealthCheckPath: string;
   // Per-run, injected by the CLI from GHA context
   targetImageTag: string;
   runId: string;
@@ -68,24 +70,26 @@ function optionalJsonRecord(name: string): Record<string, string> {
 
 export function loadConfig(): Config {
   return {
-    region:             requireEnv('AWS_REGION'),
-    ecsCluster:         requireEnv('WEIR_ECS_CLUSTER'),
-    taskFamily:         requireEnv('WEIR_TASK_FAMILY'),
-    subnetIds:          requireList('WEIR_SUBNET_IDS'),
-    securityGroupId:    requireEnv('WEIR_SECURITY_GROUP_ID'),
-    resultsBucket:      requireEnv('WEIR_RESULTS_BUCKET'),
-    executionRoleArn:   requireEnv('WEIR_EXECUTION_ROLE_ARN'),
-    taskRoleArn:        requireEnv('WEIR_TASK_ROLE_ARN'),
-    schedulerRoleArn:   requireEnv('WEIR_SCHEDULER_ROLE_ARN'),
-    ecrTargetRepo:      requireEnv('WEIR_ECR_TARGET_REPO'),
-    ecrSentinelRepo:    requireEnv('WEIR_ECR_SENTINEL_REPO'),
-    logGroupName:       requireEnv('WEIR_LOG_GROUP'),
-    maxConcurrentScans: requireInt('WEIR_MAX_CONCURRENT_SCANS'),
-    teardownMinutes:    requireInt('WEIR_TEARDOWN_MINUTES'),
-    targetImageTag:     requireEnv('WEIR_TARGET_IMAGE_TAG'),
-    runId:              requireEnv('WEIR_RUN_ID'),
-    verbose:            process.env.WEIR_VERBOSE === 'true',
-    targetEnvOverrides: optionalJsonRecord('WEIR_TARGET_ENV'),
-    targetAuthUrl:      optionalEnv('WEIR_TARGET_AUTH_URL'),
+    region:                requireEnv('AWS_REGION'),
+    ecsCluster:            requireEnv('WEIR_ECS_CLUSTER'),
+    taskFamily:            requireEnv('WEIR_TASK_FAMILY'),
+    subnetIds:             requireList('WEIR_SUBNET_IDS'),
+    securityGroupId:       requireEnv('WEIR_SECURITY_GROUP_ID'),
+    resultsBucket:         requireEnv('WEIR_RESULTS_BUCKET'),
+    executionRoleArn:      requireEnv('WEIR_EXECUTION_ROLE_ARN'),
+    taskRoleArn:           requireEnv('WEIR_TASK_ROLE_ARN'),
+    schedulerRoleArn:      requireEnv('WEIR_SCHEDULER_ROLE_ARN'),
+    ecrTargetRepo:         requireEnv('WEIR_ECR_TARGET_REPO'),
+    ecrSentinelRepo:       requireEnv('WEIR_ECR_SENTINEL_REPO'),
+    logGroupName:          requireEnv('WEIR_LOG_GROUP'),
+    maxConcurrentScans:    requireInt('WEIR_MAX_CONCURRENT_SCANS'),
+    teardownMinutes:       requireInt('WEIR_TEARDOWN_MINUTES'),
+    targetPort:            requireInt('WEIR_TARGET_PORT'),
+    targetHealthCheckPath: requireEnv('WEIR_TARGET_HEALTH_CHECK_PATH'),
+    targetImageTag:        requireEnv('WEIR_TARGET_IMAGE_TAG'),
+    runId:                 requireEnv('WEIR_RUN_ID'),
+    verbose:               process.env.WEIR_VERBOSE === 'true',
+    targetEnvOverrides:    optionalJsonRecord('WEIR_TARGET_ENV'),
+    targetAuthUrl:         optionalEnv('WEIR_TARGET_AUTH_URL'),
   };
 }

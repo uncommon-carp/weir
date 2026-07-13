@@ -56,8 +56,8 @@ export class TeardownScheduler {
         event: 'weir.scheduler.cancel',
         scheduleName: this.scheduleName,
       });
-    } catch (err: any) {
-      if (err?.name !== 'ResourceNotFoundException') throw err;
+    } catch (err) {
+      if (!(err instanceof Error) || err.name !== 'ResourceNotFoundException') throw err;
     }
   }
 }

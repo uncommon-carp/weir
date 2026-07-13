@@ -57,6 +57,12 @@ variable "target_port" {
   default     = 3000
 }
 
+variable "target_health_check_path" {
+  description = "HTTP path the target container's health check probes. Anemone-specific default; override per target repo."
+  type        = string
+  default     = "/api/v2/health"
+}
+
 variable "max_concurrent_scans" {
   description = "Soft cap the orchestrator CLI enforces before RunTask. Exposed as an output; not an ECS-native limit."
   type        = number

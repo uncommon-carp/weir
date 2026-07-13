@@ -1,5 +1,8 @@
-# Results bucket. Private, versioned, encrypted, lifecycle-expired — a scan
-# report is ephemeral evidence, not something to keep forever.
+# Results bucket. Private, encrypted, lifecycle-expired — a scan report is
+# ephemeral evidence, not something to keep forever. Not versioned, on
+# purpose: versioning would work against the 30-day expiration below by
+# letting noncurrent versions accumulate indefinitely, for no compliance/
+# audit need this bucket actually has.
 
 resource "aws_s3_bucket" "results" {
   bucket_prefix = "${local.name}-results-"

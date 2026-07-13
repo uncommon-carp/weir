@@ -74,10 +74,27 @@ export async function runScan(
     const message = err instanceof Error ? err.message : String(err);
     const stack = err instanceof Error ? err.stack : undefined;
     logger.error(`orchestrator error: ${message}`, stack ? { stack } : undefined);
-    try { await ecs.stopTask(taskArn, 'weir: orchestrator error'); } catch { }
+    try {
+      await ecs.stopTask(taskArn, 'weir: orchestrator error');
+    } catch (stopErr) {
+      const stopMessage = stopErr instanceof Error ? stopErr.message : String(stopErr);
+      logger.error(
+        `failed to stop task ${taskArn} during error cleanup — the teardown backstop is the remaining safety net: ${stopMessage}`
+      );
+    }
     exitCode = 1;
   } finally {
-    try { await scheduler.cancel(); } catch { }
+    try {
+      await scheduler.cancel();
+    } catch (cancelErr) {
+      // scheduler.cancel() already swallows ResourceNotFoundException
+      // internally, so anything that reaches here is a real error, not a
+      // "schedule already gone" no-op — worth surfacing, not discarding.
+      const cancelMessage = cancelErr instanceof Error ? cancelErr.message : String(cancelErr);
+      logger.error(
+        `failed to cancel teardown backstop for run ${config.runId} — it will still fire at +${config.teardownMinutes}min: ${cancelMessage}`
+      );
+    }
   }
 
   return exitCode;

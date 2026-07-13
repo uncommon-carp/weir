@@ -63,7 +63,7 @@ weir/
 
 ## Scanner scope
 
-Weir runs Sentinel in Tier-0 mode: passive surface scanning (headers, CORS, inventory, JWT shape, injection surface). Authorization-logic vulnerabilities require multi-identity testing and are out of scope for this black-box gate. Tier-2 opt-in is on the roadmap.
+Weir defaults to Tier-0 (passive surface scanning: headers, CORS, inventory, JWT shape, injection surface), but Tier-1 credential plumbing is live via `target-auth-url` — Anemone's CI always scans authenticated, adding definitive JWT/token enforcement and mass assignment detection. BOLA (Tier-2) requires a second identity, which Weir's config surface doesn't yet supply — that's the remaining roadmap item. BFLA has no check in Sentinel at any tier. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#scanner-scope) for the full breakdown.
 
 ## Connecting a target repo
 
