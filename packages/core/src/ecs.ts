@@ -16,6 +16,18 @@ export interface RunResult {
   stoppedReason: string | undefined;
 }
 
+// WEIR_TARGET_ENV is a free-form JSON object (arbitrary key names), unlike
+// Sentinel's fixed-shape Credential type, so redaction here is by key-name
+// pattern rather than by field. Mirrors Sentinel's redactCredential intent
+// (sentinel/src/config/load.ts) — don't let secret-shaped values reach logs.
+const SECRET_ENV_KEY_PATTERN = /secret|token|password|passwd|credential|apikey|api_key/i;
+
+function redactSecretShapedEnv(overrides: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(overrides).map(([k, v]) => [k, SECRET_ENV_KEY_PATTERN.test(k) ? '***' : v])
+  );
+}
+
 export class EcsOrchestrator {
   private client: ECSClient;
 
@@ -53,15 +65,26 @@ export class EcsOrchestrator {
   }
 
   private buildContainerDefinitions(): ContainerDefinition[] {
-    const { ecrTargetRepo, ecrSentinelRepo, resultsBucket, runId, region, logGroupName, targetEnvOverrides, targetAuthUrl } = this.config;
+    const {
+      ecrTargetRepo,
+      ecrSentinelRepo,
+      resultsBucket,
+      runId,
+      region,
+      logGroupName,
+      targetEnvOverrides,
+      targetAuthUrl,
+      targetPort,
+      targetHealthCheckPath,
+    } = this.config;
 
     if (Object.keys(targetEnvOverrides).length > 0) {
       this.logger.debug('Applying target env overrides', {
         event: 'weir.target.env.override',
-        overrides: targetEnvOverrides,
+        overrides: redactSecretShapedEnv(targetEnvOverrides),
       });
     }
-    const targetEnv = { PORT: '3000', ...targetEnvOverrides };
+    const targetEnv = { PORT: String(targetPort), ...targetEnvOverrides };
 
     if (targetAuthUrl) {
       this.logger.debug('Passing auth token URL to sentinel', {
@@ -70,7 +93,7 @@ export class EcsOrchestrator {
       });
     }
     const sentinelEnv: { name: string; value: string }[] = [
-      { name: 'TARGET_URL', value: 'http://localhost:3000' },
+      { name: 'TARGET_URL', value: `http://localhost:${targetPort}` },
       { name: 'RESULTS_BUCKET', value: resultsBucket },
       { name: 'RUN_ID', value: runId },
     ];
@@ -83,12 +106,12 @@ export class EcsOrchestrator {
         name: 'target',
         image: `${ecrTargetRepo}:${this.config.targetImageTag}`,
         essential: false,
-        portMappings: [{ containerPort: 3000, protocol: 'tcp' }],
+        portMappings: [{ containerPort: targetPort, protocol: 'tcp' }],
         environment: Object.entries(targetEnv).map(([name, value]) => ({ name, value })),
         healthCheck: {
           command: [
             'CMD-SHELL',
-            "node -e \"require('http').get('http://localhost:3000/api/v2/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\"",
+            `node -e "require('http').get('http://localhost:${targetPort}${targetHealthCheckPath}',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"`,
           ],
           interval: 5,
           timeout: 3,
@@ -167,6 +190,32 @@ export class EcsOrchestrator {
       const failure = result.failures?.[0];
       throw new Error(`RunTask failed: ${failure?.reason ?? 'unknown'}`);
     }
+
+    // countActiveTasks() above and RunTaskCommand here aren't atomic — two
+    // concurrent runTask() calls (separate CI jobs, separate processes) can
+    // both pass the check and both launch. There's no ECS-native way to
+    // reserve a slot, so instead of preventing the race we detect it right
+    // after launch and self-correct: stop the task we just started rather
+    // than let the cap be silently exceeded. Mirrors the invariant the
+    // caller (runScan) relies on — a task is only ever "live" once this
+    // method returns an ARN, so on this path we never return one.
+    const activeAfterLaunch = await this.countActiveTasks();
+    if (activeAfterLaunch > this.config.maxConcurrentScans) {
+      this.logger.warn(
+        `Concurrency cap race detected (${activeAfterLaunch}/${this.config.maxConcurrentScans} active after launch) — stopping task ${taskArn} it just started`
+      );
+      await this.client.send(
+        new StopTaskCommand({
+          cluster: this.config.ecsCluster,
+          task: taskArn,
+          reason: 'weir: concurrency cap race, self-corrected',
+        })
+      );
+      throw new Error(
+        `Concurrency cap: race detected at launch (${activeAfterLaunch}/${this.config.maxConcurrentScans} active). Retry later.`
+      );
+    }
+
     this.logger.debug('Launched scan task', {
       event: 'weir.task.run',
       taskArn,

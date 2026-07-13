@@ -83,7 +83,7 @@ Four roles, deliberately not merged. The separation is load-bearing — not conv
 │                 │                          │ ecs:RunTask/StopTask/DescribeTasks  │
 │                 │                          │ iam:PassRole → execution + task only│
 │                 │                          │ scheduler:CreateSchedule/Delete     │
-│                 │                          │ s3:GetObject + ListBucket           │
+│                 │                          │ s3:GetObject                        │
 ├─────────────────┼──────────────────────────┼─────────────────────────────────────┤
 │ scheduler       │ EventBridge Scheduler    │ ecs:StopTask (backstop teardown)    │
 └─────────────────┴──────────────────────────┴─────────────────────────────────────┘
@@ -105,9 +105,11 @@ CLI: registerRevision()
 
 CLI: runTask()
   ├─ countActiveTasks() — refuses if >= max_concurrent_scans
-  └─▶ ECS: RunTask
-        ├─ target starts, health check polls /api/v2/health every 5s
-        └─ sentinel starts only after target is HEALTHY (dependsOn condition)
+  ├─▶ ECS: RunTask
+  │     ├─ target starts, health check polls target_health_check_path every 5s
+  │     └─ sentinel starts only after target is HEALTHY (dependsOn condition)
+  └─ countActiveTasks() again — self-corrects (stops the task it just
+        launched) if a concurrent launch raced past the cap in between
 
 CLI: scheduler.create(taskArn)
   └─▶ EventBridge: one-shot schedule at now + teardown_minutes
@@ -133,7 +135,7 @@ CLI: scheduler.cancel()
 
 1. **Atomic** — sentinel exits → ECS stops the task. Covers the normal path.
 2. **Backstop** — EventBridge one-shot fires `StopTask` at T+N. Covers cancelled runners and wedged tasks.
-3. **Concurrency cap** — CLI refuses to `RunTask` past `max_concurrent_scans`. Covers runaway loops.
+3. **Concurrency cap** — CLI refuses to `RunTask` past `max_concurrent_scans`, and self-corrects (stops its own just-launched task) if a race with a concurrent launch slips past that check. Covers runaway loops.
 4. **Billing alarm** — CloudWatch `EstimatedCharges` alert. Covers everything else.
 
 ---
@@ -196,6 +198,8 @@ All runtime config flows through environment variables, read by `packages/core/s
 | `WEIR_LOG_GROUP` | SSM | CloudWatch log group for both containers |
 | `WEIR_MAX_CONCURRENT_SCANS` | SSM | Soft concurrency cap |
 | `WEIR_TEARDOWN_MINUTES` | SSM | Backstop TTL |
+| `WEIR_TARGET_PORT` | SSM | Port the target container listens on (default `3000`) |
+| `WEIR_TARGET_HEALTH_CHECK_PATH` | SSM | HTTP path the target's health check probes (default `/api/v2/health`, Anemone-specific — override per target) |
 | `WEIR_TARGET_IMAGE_TAG` | GHA (`github.sha`) | PR build tag |
 | `WEIR_RUN_ID` | GHA run ID + attempt | S3 key + schedule name |
 | `WEIR_VERBOSE` | optional, unset by default | `"true"` enables debug-level logging (task polling, schedule create/cancel, S3 reads) |
@@ -213,7 +217,7 @@ Weir treats Sentinel as a black box with one interface: write a JSON report to S
 **Environment variables Sentinel receives:**
 
 ```
-TARGET_URL       http://localhost:3000
+TARGET_URL       http://localhost:<target_port>   (default port 3000)
 RESULTS_BUCKET   <bucket name>
 RUN_ID           weir-<run_id>-<attempt>
 AUTH_TOKEN_URL   <optional, only present when target-auth-url is set>
@@ -225,19 +229,24 @@ AUTH_TOKEN_URL   <optional, only present when target-auth-url is set>
 s3://$RESULTS_BUCKET/results/$RUN_ID.json
 ```
 
-**Expected report shape** (defined in `packages/core/src/results.ts`):
+**Expected report shape** (defined in `packages/core/src/results.ts`, matching
+Sentinel's `RunResult` field-for-field — see `ScanReport`'s header comment
+for why it's a separate hand-maintained type rather than an import):
 
 ```typescript
 interface ScanReport {
+  meta: RunMeta;
+  config: Record<string, unknown>;
   findings: Finding[];
-  summary: Record<string, unknown>;
+  suiteErrors: SuiteError[];
+  reporterErrors: ReporterError[];
 }
 
 interface Finding {
   id: string;       // e.g. "cors.origin_reflection"
   severity: string; // e.g. "high"
   title: string;
-  [key: string]: unknown;
+  [key: string]: unknown; // Sentinel's Finding carries more (description, remediation, owasp, evidence, ...); Weir only reads id/severity/title
 }
 ```
 
@@ -249,21 +258,34 @@ If Sentinel's actual output shape diverges, update `results.ts` to match — Wei
 
 ## Scanner scope
 
-Weir runs Sentinel in **Tier-0** mode: passive black-box surface scanning.
+Weir defaults to running Sentinel in **Tier-0** mode (passive black-box
+surface scanning) but Tier-1 credential plumbing is live: setting
+`target-auth-url` on the calling workflow (Anemone's CI always does)
+passes an `AUTH_TOKEN_URL` through to Sentinel, which fetches a real token
+and scans authenticated. See `sentinel/docs/ARCHITECTURE.md`'s "Auth tiers"
+section for the canonical tier definitions — summarized here:
 
 | Tier | Mode | Input required | Checks |
 |---|---|---|---|
 | 0 | Passive surface | URL only | Headers, CORS, inventory, JWT shape, injection surface |
-| 1 | Authenticated | URL + auth flow | JWT enforcement, authenticated inventory, mass assignment |
-| 2 | Multi-identity | URL + ≥2 identities + policy declaration | BOLA, BFLA |
+| 1 | Authenticated | URL + one identity | Definitive JWT/token enforcement (`auth.invalid_token_accepted`), mass assignment (opt-in) |
+| 2 | Multi-identity | URL + ≥2 identities | Cross-identity BOLA (`auth.bola_object_access`) |
 
-Tier-1 and Tier-2 are on the Sentinel roadmap as opt-in. Tier-2 mutating checks (e.g. confirming BFLA by actually deleting a resource) are the reason ephemeral provisioning is load-bearing — clean state per run makes destructive checks safe and repeatable.
+Tier-1 and Tier-2 are implemented in Sentinel, not roadmap. What's still
+roadmap for Weir specifically is *multi-identity* orchestration — Weir's own
+config surface (`target-auth-url`) only ever supplies Sentinel with a single
+identity today, so a real scan through Weir currently reaches Tier-1, not
+Tier-2, regardless of what Sentinel itself supports. Wiring a second
+identity through would be the remaining work to reach Tier-2 via Weir.
+BFLA has no dedicated check in Sentinel at any tier and remains out of
+scope everywhere, not just through Weir.
 
-**Honest scope statement.** Weir in its current form catches misconfiguration, inventory, and auth-shape vulnerabilities. Authorization-logic vulnerabilities (BOLA, BFLA) require multi-identity authenticated testing and are explicitly out of scope for this black-box gate. This is a true statement about DAST coverage, not a gap to paper over.
+**Honest scope statement.** Weir in its current form catches
+misconfiguration, inventory, and auth-shape vulnerabilities, plus — via
+Sentinel's Tier-1 support — definitive JWT/token enforcement and mass
+assignment on the identity it's given. Object-level authorization (BOLA)
+requires a second identity Weir doesn't yet supply, and function-level
+authorization (BFLA) has no check in Sentinel regardless; both remain out
+of scope for a real Weir-driven scan today. This is a true statement about
+current DAST coverage, not a gap to paper over.
 
----
-
-## Known rough edges
-
-- **`action.yml` references pre-built `dist/`.** Composite Actions can't build before running. Options: commit `dist/` on releases, or switch to a composite action with explicit build steps. Decide before wiring Anemone.
-- **`ScanReport` shape is a placeholder.** Pin to Sentinel's actual output once the S3 feature ships.

@@ -17,6 +17,8 @@ locals {
     "log-group"            = aws_cloudwatch_log_group.scan.name
     "max-concurrent-scans" = tostring(var.max_concurrent_scans)
     "teardown-minutes"     = tostring(var.teardown_minutes)
+    "target-port"          = tostring(var.target_port)
+    "target-health-path"   = var.target_health_check_path
   }
 }
 
